@@ -1,0 +1,12 @@
+{
+  "name": "INT8 Dynamic",
+  "description": "Dynamic INT8 quantization (weights only), graph optimized, 4 threads.",
+  "quantization": "dynamic",
+  "session_opts": {
+    "graph_optimization_level": "ORT_ENABLE_ALL",
+    "intra_op_num_threads": 4,
+    "inter_op_num_threads": 2,
+    "execution_mode": "ORT_PARALLEL",
+    "enable_mem_pattern": true
+  }
+}

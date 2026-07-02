@@ -1,0 +1,18 @@
+{
+  "name": "INT8 Max Tuned",
+  "description": "Dynamic INT8 + all tuning knobs: 4 threads, parallel, memory pattern, spin-wait.",
+  "quantization": "dynamic",
+  "session_opts": {
+    "graph_optimization_level": "ORT_ENABLE_ALL",
+    "intra_op_num_threads": 4,
+    "inter_op_num_threads": 4,
+    "execution_mode": "ORT_PARALLEL",
+    "enable_mem_pattern": true,
+    "enable_cpu_mem_arena": true,
+    "extra": {
+      "session.intra_op.allow_spinning": 1,
+      "session.inter_op.allow_spinning": 1,
+      "session.intra_op.use_xnnpack_threadpool": 1
+    }
+  }
+}

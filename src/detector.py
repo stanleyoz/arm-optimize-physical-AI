@@ -21,18 +21,20 @@ YOLO_CLASSES = [
 
 
 class YOLODetector:
-    def __init__(self, model_path: str | Path, conf_threshold: float = 0.4, iou_threshold: float = 0.5):
+    def __init__(self, model_path: str | Path, conf_threshold: float = 0.4,
+                 iou_threshold: float = 0.5, session_opts: ort.SessionOptions | None = None):
         self.model_path = str(model_path)
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
 
-        sess_options = ort.SessionOptions()
-        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        sess_options.intra_op_num_threads = 4
-        sess_options.inter_op_num_threads = 2
+        if session_opts is None:
+            session_opts = ort.SessionOptions()
+            session_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            session_opts.intra_op_num_threads = 4
+            session_opts.inter_op_num_threads = 2
 
         self.session = ort.InferenceSession(
-            self.model_path, sess_options=sess_options,
+            self.model_path, sess_options=session_opts,
             providers=["CPUExecutionProvider"],
         )
         self.input_name = self.session.get_inputs()[0].name

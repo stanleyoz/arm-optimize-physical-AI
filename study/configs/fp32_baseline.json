@@ -1,0 +1,12 @@
+{
+  "name": "FP32 Baseline",
+  "description": "No optimization, single thread. Worst-case baseline.",
+  "quantization": null,
+  "session_opts": {
+    "graph_optimization_level": "ORT_DISABLE_ALL",
+    "intra_op_num_threads": 1,
+    "inter_op_num_threads": 1,
+    "execution_mode": "ORT_SEQUENTIAL",
+    "enable_mem_pattern": false
+  }
+}
