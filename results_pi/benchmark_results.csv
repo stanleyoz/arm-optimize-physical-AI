@@ -1,0 +1,3 @@
+model,size_mb,mean_latency_ms,median_latency_ms,p95_latency_ms,p99_latency_ms,fps,peak_memory_mb
+yolov8n,12.26,166.63,165.65,169.57,191.14,6.0,14.50
+yolov8n_int8,3.36,73.05,72.91,73.66,75.92,13.7,7.50

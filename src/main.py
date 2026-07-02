@@ -1,0 +1,125 @@
+import argparse
+import time
+from pathlib import Path
+
+import cv2
+import numpy as np
+
+from src.benchmark import run_benchmarks, generate_chart
+from src.camera import Camera
+from src.detector import YOLODetector, draw_detections
+from src.optimizer import (
+    export_onnx,
+    quantize_onnx_static,
+    print_comparison,
+    MODELS_DIR,
+    OPTIMIZED_DIR,
+)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Arm-Optimized Real-Time Vision Assistant")
+    parser.add_argument("--model", default="yolov8n", help="YOLO model name (default: yolov8n)")
+    parser.add_argument("--camera", type=int, default=0, help="Camera device index (default: 0)")
+    parser.add_argument("--conf", type=float, default=0.4, help="Confidence threshold (default: 0.4)")
+    parser.add_argument("--demo", action="store_true", help="Run real-time camera demo")
+    parser.add_argument("--benchmark", action="store_true", help="Run benchmarks")
+    parser.add_argument("--quantize-only", action="store_true", help="Only export + quantize, no benchmark or demo")
+    parser.add_argument("--runs", type=int, default=200, help="Inference runs for benchmark (default: 200)")
+    return parser.parse_args()
+
+
+def run_demo(model_path: Path, camera_id: int, conf_threshold: float):
+    print("[main] Loading detector...")
+    detector = YOLODetector(str(model_path), conf_threshold=conf_threshold)
+    detector.warmup()
+
+    print(f"[main] Opening camera #{camera_id}...")
+    cam = Camera(source=camera_id, width=640, height=480)
+    cam.start()
+
+    cv2.namedWindow("Arm Vision Assistant", cv2.WINDOW_NORMAL)
+    fps_buffer = []
+
+    print("[main] Demo running — press 'q' to quit, 's' to save frame")
+    try:
+        while True:
+            frame = cam.read()
+            if frame is None:
+                continue
+
+            t0 = time.perf_counter()
+            detections = detector.infer(frame)
+            t1 = time.perf_counter()
+
+            fps_buffer.append(1.0 / (t1 - t0))
+            if len(fps_buffer) > 30:
+                fps_buffer.pop(0)
+            current_fps = np.mean(fps_buffer)
+
+            display = draw_detections(frame.copy(), detections)
+            cv2.putText(
+                display,
+                f"FPS: {current_fps:.1f} | Detections: {len(detections)}",
+                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2,
+            )
+
+            model_label = Path(detector.model_path).stem
+            cv2.putText(
+                display,
+                f"Model: {model_label}",
+                (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1,
+            )
+
+            cv2.imshow("Arm Vision Assistant", display)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
+            elif key == ord("s"):
+                timestamp = int(time.time())
+                cv2.imwrite(f"capture_{timestamp}.jpg", display)
+                print(f"[main] Saved capture_{timestamp}.jpg")
+    finally:
+        cam.stop()
+        cv2.destroyAllWindows()
+
+
+def main():
+    args = parse_args()
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    OPTIMIZED_DIR.mkdir(parents=True, exist_ok=True)
+    results_dir = Path("results")
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    print("=" * 50)
+    print("Arm AI Optimization Challenge — Real-Time Vision Assistant")
+    print("=" * 50)
+
+    fp32_path = export_onnx(args.model)
+    print_comparison(fp32_path, fp32_path)
+
+    int8_path = quantize_onnx_static(fp32_path)
+    print_comparison(fp32_path, int8_path)
+
+    if args.quantize_only:
+        return
+
+    if args.benchmark:
+        print("\n--- Running Benchmarks ---")
+        results = run_benchmarks(fp32_path, int8_path, results_dir, runs=args.runs)
+        generate_chart(results, results_dir)
+        return
+
+    if args.demo:
+        run_demo(int8_path, args.camera, args.conf)
+        return
+
+    print("\nNo action specified. Use --demo for live camera or --benchmark for performance tests.")
+    print("Examples:")
+    print("  python run.py --demo              # Real-time detection")
+    print("  python run.py --benchmark          # Benchmark FP32 vs INT8")
+    print("  python run.py --quantize-only      # Just export + quantize")
+
+
+if __name__ == "__main__":
+    main()
