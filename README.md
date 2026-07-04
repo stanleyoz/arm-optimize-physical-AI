@@ -1,121 +1,84 @@
-# Arm-Optimized Real-Time Vision Assistant
+# Arm-Optimized Physical AI Tracker
 
 > **Arm AI Optimization Challenge 2026 — Physical AI Track**
 
-A real-time object detection system optimized for **Arm-powered edge devices** (Raspberry Pi 4/5). Uses INT8 quantization, ONNX Runtime with Arm NEON optimizations, and benchmarked end-to-end to show **2.4x speedup and 3.6x model size reduction** over baseline FP32.
+A closed-loop person tracking system running on a Raspberry Pi 5: YOLOv8n/s/m optimized via INT8 quantization and ONNX Runtime pan-tilt servos that follow people in real time. Includes a **reproducible 18-point optimization study framework** with COCO128 accuracy validation and Pareto analysis.
 
 ---
 
 ## Project Overview
 
-This project demonstrates how to take a standard YOLOv8n object detection model and optimize it for deployment on Arm-based edge hardware. The result is a **real-time vision assistant** that runs on a Raspberry Pi with a camera, detecting objects at interactive frame rates while consuming less memory and storage.
+This project demonstrates the complete pipeline from model optimization to Physical AI deployment on Arm hardware:
 
-**Why this should win:**
-- Shows a **clear, measurable optimization pipeline** (FP32 → INT8) with quantified improvements
-- Uses **Arm-specific acceleration** via ONNX Runtime's NEON-optimized CPUExecutionProvider
-- Runs **fully on-device** on a Raspberry Pi — no cloud dependency, privacy-preserving
-- Includes **benchmarking infrastructure** so results are reproducible and comparable
-- **Open source** with MIT license — reusable by the entire Arm developer community
+1. **Optimization Study** — Sweep 3 model sizes × 6 configs = 18 data points, validate accuracy, find Pareto-optimal operating points
+2. **Real-Time Tracking** — Camera → YOLO (INT8 Dynamic, 13.7 FPS, 73 ms latency) → PID controller → pan-tilt servos (SR431 via RP2040)
+3. **Key Discovery** — Static INT8 quantization silently collapses YOLO confidences to zero (mAP=0.0). Documented with proof so the community doesn't waste time debugging it.
 
----
+### Key results
 
-## Functionality / Output
+| Metric | FP32 Baseline | INT8 Dynamic | Improvement |
+|--------|:------------:|:------------:|:-----------:|
+| Throughput | 6.0 FPS | **13.7 FPS** | **2.3x** |
+| Latency | 166.6 ms | **73.0 ms** | **2.3x** |
+| Model Size | 12.3 MB | **3.4 MB** | **3.6x** |
+| Memory | 14.5 MB | **7.5 MB** | **1.9x** |
+| Accuracy (mAP) | 0.451 | **0.435** | **−3.5%** |
 
-### What it does
-1. **Model Optimization Pipeline** — Takes a YOLOv8n model, exports to ONNX, applies INT8 quantization with calibration
-2. **Real-Time Detection** — Live camera feed with bounding boxes, class labels, confidence scores, and FPS overlay
-3. **Benchmark Suite** — Runs both FP32 and INT8 models through controlled inference loops, measuring:
-   - Throughput (FPS)
-   - Latency (mean, p50, p95, p99)
-   - Model size (MB)
-   - Peak memory usage (MB)
-4. **Visualization** — Generates comparison charts from benchmark results
-
-### Final output
-- **Optimized INT8 model** (`optimized_models/yolov8n_int8.onnx`) — 3.36 MB, ready for deployment
-- **Benchmark report** (`results/benchmark_results.csv`) with statistical latency analysis
-- **Comparison chart** (`results/benchmark_comparison.png`) visualizing FPS, latency, and size improvements
-- **Live demo** — real-time camera inference with on-screen telemetry
+*All measurements: physical Raspberry Pi 5 (4× Cortex-A76 @ 2.4 GHz, 8 GB RAM)*
 
 ---
 
-## Optimization Results
-
-### Raspberry Pi 5 (Cortex-A76 @ 2.4 GHz, aarch64)
-
-| Metric | FP32 Baseline | INT8 Optimized | Improvement |
-|--------|:------------:|:--------------:|:----------:|
-| Model Size | 12.26 MB | **3.36 MB** | **3.6x smaller** |
-| Throughput | 6.0 FPS | **13.7 FPS** | **2.3x faster** |
-| Mean Latency | 166.6 ms | **73.0 ms** | **2.3x reduction** |
-| p95 Latency | 169.6 ms | **73.7 ms** | **2.3x reduction** |
-| Peak Memory | 14.5 MB | **7.5 MB** | **1.9x less** |
-
-*Benchmarked on a physical Raspberry Pi 5 (8 GB RAM, 4× Cortex-A76 cores). 
-INT8 quantization delivers 2.3x throughput gain and halves memory usage — making real-time object detection viable on a $80 single-board computer.*
-
-### Optimization techniques used
-
-| Technique | Impact |
-|-----------|--------|
-| **INT8 Static Quantization** | 4x smaller weights, 2-4x faster NEON matmul |
-| **ONNX Runtime Graph Optimization** | Operator fusion, constant folding, layout optimization |
-| **Arm NEON SIMD** | Leveraged automatically by ONNX Runtime CPUExecutionProvider for parallel vector ops |
-| **Calibration** | 32 samples prevent accuracy degradation during quantization |
-
----
-
-## Setup Instructions (Raspberry Pi)
-
-### Prerequisites
-- Raspberry Pi 4 or 5 (2GB+ RAM recommended)
-- Raspberry Pi Camera Module (or USB webcam)
-- Raspberry Pi OS (64-bit, Bookworm)
-- Python 3.10+
-
-### Step 1 — Clone and install
+## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/optimize-arm.git
+git clone https://github.com/stanleyoz/optimize-arm.git
 cd optimize-arm
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-### Step 2 — Optimize the model
-
-This exports YOLOv8n to ONNX and applies INT8 quantization:
-
-```bash
+# Export + quantize models
 python run.py --quantize-only
-```
 
-### Step 3 — Run benchmarks
+# Live camera demo
+python run.py --demo
 
-```bash
+# Physical AI tracking (requires hardware, see hardware/WIRING.md)
+python run.py --track
+
+# Run benchmarks
 python run.py --benchmark
 ```
 
-### Step 4 — Launch real-time demo
+---
+
+## Running the Full Optimization Study
 
 ```bash
-python run.py --demo
+# On a Pi 5 with SSH access:
+python deploy_study.py
+
+# Or locally:
+python -m study.runner --runs 200
+python -m study.analyze          # Pareto playbook
+python -m study.accuracy         # COCO128 mAP validation
 ```
 
-Press `q` to quit, `s` to save a snapshot.
+Results land in `study_results/`:
+- `optimization_playbook.md` — Full 18-point report
+- `pareto_frontier.png` — Size vs throughput scatter plot
+- `accuracy_results.json` — mAP comparison
 
-### Running on a different camera
+---
+
+## Hardware
+
+Components: Pi 5 + Camera Module 3 + 2× SR431 servos + RP2040 + pan-tilt bracket.
+
+See `hardware/BOM.md` for the bill of materials (~$30) and `hardware/WIRING.md` for assembly instructions. RP2040 firmware is in `hardware/pan_tilt_firmware/`.
 
 ```bash
-python run.py --demo --camera 0   # default USB camera
-python run.py --demo --camera 1   # secondary camera
-```
-
-### Custom confidence threshold
-
-```bash
-python run.py --demo --conf 0.6   # higher threshold = fewer but more confident detections
+# One-time Pi setup:
+chmod +x scripts/setup_pan_tilt.sh && ./scripts/setup_pan_tilt.sh
 ```
 
 ---
@@ -123,52 +86,50 @@ python run.py --demo --conf 0.6   # higher threshold = fewer but more confident 
 ## Project Structure
 
 ```
-optimize-arm/
-├── run.py                  # Entry point
-├── requirements.txt        # Python dependencies
+├── run.py                   # Entry point
 ├── src/
-│   ├── __init__.py
-│   ├── main.py             # CLI / orchestration
-│   ├── optimizer.py        # ONNX export + INT8 quantization
-│   ├── detector.py         # ONNX Runtime inference + post-processing
-│   ├── camera.py           # Raspberry Pi camera capture
-│   └── benchmark.py        # Performance measurement + charting
-├── models/                 # Source FP32 models
-├── optimized_models/       # Quantized INT8 models
-└── results/                # Benchmark data + charts
+│   ├── main.py              # CLI: --demo, --track, --benchmark, --quantize-only
+│   ├── detector.py          # YOLO ONNX Runtime inference
+│   ├── tracker.py           # Pan-tilt PID + serial servo control
+│   ├── optimizer.py         # ONNX export + INT8 quantization
+│   ├── benchmark.py         # FPS/latency/memory measurement
+│   └── camera.py            # Pi Camera / USB capture
+├── study/
+│   ├── runner.py            # 3-model × 6-config ablation
+│   ├── accuracy.py          # COCO128 mAP validation
+│   ├── analyze.py           # Pareto frontier + playbook
+│   └── configs/             # 6 JSON config files
+├── hardware/
+│   ├── BOM.md               # Bill of materials
+│   ├── WIRING.md            # Step-by-step assembly guide
+│   └── pan_tilt_firmware/   # RP2040 Arduino sketch
+├── scripts/
+│   └── setup_pan_tilt.sh    # Pi camera + serial setup
+├── models/                  # FP32 ONNX models
+├── optimized_models/        # INT8 quantized models
+├── results/                 # Local benchmarks
+├── results_pi/              # Pi 5 benchmarks
+├── study_results/           # Study report + charts + accuracy
+├── deploy_pi.py             # SSH auto-deploy + benchmark
+├── deploy_study.py          # SSH auto-deploy + full study
+├── DEVPOST_SUBMISSION.md    # Hackathon submission write-up
+└── LICENSE                  # MIT
 ```
-
----
-
-## How It Leverages Arm
-
-1. **Arm NEON SIMD** — ONNX Runtime's CPUExecutionProvider auto-vectorizes convolutions and matmul operations using Arm NEON instructions on aarch64
-2. **INT8 quantized inference** — Arm NEON has dedicated 8-bit dot-product instructions (SDOT/UDOT) that run 2-4x faster than FP32 equivalents on Cortex-A72 (Pi 4) and Cortex-A76 (Pi 5)
-3. **Optimized for memory-constrained edge** — Model fits in ~3.4 MB with 1.9x lower peak memory, ideal for embedded/edge deployment
-4. **Fully on-device** — No cloud round-trip, no GPU required, runs on commodity Arm single-board computers
-5. **Measured on real hardware** — All benchmarks run on a physical Raspberry Pi 5, not simulated
 
 ---
 
 ## Tech Stack
 
-- **Model**: YOLOv8nano (Ultralytics)
-- **Framework**: ONNX Runtime with CPUExecutionProvider
-- **Quantization**: ONNX Runtime static INT8 quantization
-- **Language**: Python 3.12
-- **Camera**: OpenCV (Picamera2-compatible)
-- **Hardware target**: Raspberry Pi 4/5 (Arm Cortex-A72/A76)
+- **Models:** YOLOv8n/s/m (Ultralytics)
+- **Runtime:** ONNX Runtime with Arm NEON CPUExecutionProvider
+- **Quantization:** ONNX Runtime INT8 static + dynamic
+- **Control:** Custom PID → serial protocol → RP2040
+- **Firmware:** Arduino sketch (Servo library) on RP2040
+- **Platform:** Raspberry Pi 5 (Cortex-A76) + Pi Pico (Cortex-M0+)
+- **Servos:** 2× SR431 analog
 
 ---
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
----
-
-## Submission Details
-
-- **Track**: Physical AI
-- **Video**: [link to YouTube/Vimeo demo]
-- **Repository**: [public GitHub link]
