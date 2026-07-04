@@ -31,8 +31,8 @@ This project demonstrates the complete pipeline from model optimization to Physi
 ## Quick Start
 
 ```bash
-git clone https://github.com/stanleyoz/optimize-arm.git
-cd optimize-arm
+git clone https://github.com/stanleyoz/arm-optimize-physical-AI.git
+cd arm-optimize-physical-AI
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
@@ -86,6 +86,7 @@ chmod +x scripts/setup_pan_tilt.sh && ./scripts/setup_pan_tilt.sh
 ## Project Structure
 
 ```
+arm-optimize-physical-AI/
 ├── run.py                   # Entry point
 ├── src/
 │   ├── main.py              # CLI: --demo, --track, --benchmark, --quantize-only

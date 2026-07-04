@@ -59,7 +59,7 @@ Use this to verify everything is in place before submitting.
 
 ## Submission Form (in browser)
 
-- [ ] **URL to public GitHub repo** → `https://github.com/stanleyoz/optimize-arm`
+- [ ] **URL to public GitHub repo** → `https://github.com/stanleyoz/arm-optimize-physical-AI`
 - [ ] **Demo video uploaded** to YouTube/Vimeo (< 3 min)
   - [ ] Shows the system functioning on Pi 5
   - [ ] Pan-tilt tracking in action

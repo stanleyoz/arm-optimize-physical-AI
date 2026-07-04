@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Deploy optimize-arm to Raspberry Pi 5, run benchmarks, restore original app.
+Deploy arm-optimize-physical-AI to Raspberry Pi 5, run benchmarks, restore original app.
 """
 
 import io
